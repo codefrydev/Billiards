@@ -16,25 +16,44 @@
         }
         #game-container {
             width: 100%;
-            max-width: 1000px;
+            max-width: 100%;
             margin: 0 auto;
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        #game-area {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .canvas-wrapper {
+            /* Maximize size while fitting in viewport, 2:1 billiards aspect */
+            width: min(100%, 2 * (100vh - 240px));
+            max-width: 100%;
+            aspect-ratio: 2 / 1;
+            max-height: calc(100vh - 240px);
+            position: relative;
         }
         #game-canvas {
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(0,0,0,0.5);
             background-color: #0c5c27; /* Pool table green */
             border-radius: 12px;
             width: 100%;
-            aspect-ratio: 2 / 1;
+            height: 100%;
             display: block;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-2 md:p-4">
+<body class="min-h-screen flex flex-col items-center p-2 md:p-4 overflow-hidden">
 
     <div id="game-container" class="flex flex-col gap-4">
         
         <!-- Header / HUD -->
-        <div class="flex justify-between items-center bg-gray-800 p-3 md:p-4 rounded-xl shadow-lg border border-gray-700">
+        <div class="flex flex-shrink-0 justify-between items-center bg-gray-800 p-3 md:p-4 rounded-xl shadow-lg border border-gray-700">
             <!-- Player 1 -->
             <div class="flex flex-col items-center w-1/3">
                 <span id="p1-name" class="text-blue-400 font-bold text-sm md:text-base uppercase tracking-widest mb-1">Player 1</span>
@@ -47,6 +66,7 @@
             <div class="flex flex-col items-center w-1/3 border-x border-gray-700">
                 <span class="text-gray-400 text-xs uppercase tracking-widest mb-1">Current Turn</span>
                 <span id="turn-indicator" class="text-sm font-bold text-white bg-blue-600 px-3 py-1 rounded-full shadow-md transition-colors">Player 1</span>
+                <span id="status-message" class="text-xs text-gray-400 mt-1 min-h-[1em]"></span>
             </div>
 
             <!-- Player 2 / Bot -->
@@ -59,37 +79,38 @@
         </div>
 
         <!-- Game Area -->
-        <div class="relative w-full flex justify-center bg-[#4a2e15] p-3 md:p-5 rounded-2xl shadow-2xl border-b-8 border-r-4 border-[#2c1a0b]">
-            <canvas id="game-canvas" width="1000" height="500"></canvas>
-            
-            <!-- Messages Overlay -->
-            <div id="message-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300 z-10">
-                <div class="bg-black/90 px-8 py-4 rounded-xl border border-gray-600 shadow-2xl backdrop-blur-sm flex flex-col items-center gap-2">
-                    <span id="message-text" class="text-2xl md:text-3xl font-bold tracking-wider text-white">Message</span>
-                    <span id="sub-message-text" class="text-sm md:text-base text-gray-300"></span>
+        <div id="game-area" class="relative w-full bg-[#4a2e15] p-3 md:p-5 rounded-2xl shadow-2xl border-b-8 border-r-4 border-[#2c1a0b]">
+            <div class="canvas-wrapper">
+                <canvas id="game-canvas" width="1000" height="500"></canvas>
+                <!-- Messages Overlay -->
+                <div id="message-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300 z-10">
+                    <div class="bg-black/90 px-8 py-4 rounded-xl border border-gray-600 shadow-2xl backdrop-blur-sm flex flex-col items-center gap-2">
+                        <span id="message-text" class="text-2xl md:text-3xl font-bold tracking-wider text-white">Message</span>
+                        <span id="sub-message-text" class="text-sm md:text-base text-gray-300"></span>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Controls / Instructions -->
-        <div class="bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700">
+        <div class="flex-shrink-0 bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-3">
                 <h3 class="font-bold text-green-500">How to Play 8-Ball</h3>
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="flex items-center gap-2 bg-gray-700 px-2 py-1 rounded shadow-md" title="Adjust cue stick sensitivity">
                         <label for="power-input" class="text-xs font-bold text-gray-300 uppercase tracking-wider">Power</label>
-                        <input type="number" id="power-input" value="15" min="1" max="50" step="1" class="w-12 px-1 py-0.5 rounded text-black font-bold text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-500">
+                        <input type="number" id="power-input" value="170" min="1" max="1000" step="1" class="w-16 px-1 py-0.5 rounded text-black font-bold text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-500">
                     </div>
-                    <button id="mode-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-1.5 px-4 rounded transition-colors shadow-md">
+                    <button id="mode-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-1.5 px-4 rounded transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800" aria-label="Toggle game mode: versus bot or versus player 2">
                         Mode: Vs Bot
                     </button>
-                    <button id="reset-btn" class="bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-1.5 px-4 rounded transition-colors shadow-md">
+                    <button id="reset-btn" class="bg-red-600 hover:bg-red-700 text-white text-sm font-bold py-1.5 px-4 rounded transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-800" aria-label="Rack balls and start new game">
                         Rack Balls
                     </button>
                 </div>
             </div>
             <ul class="text-sm text-gray-300 space-y-1.5 list-disc pl-5">
-                <li><strong class="text-white">Shoot:</strong> Tap anywhere and pull back to aim the cue stick. Release to strike.</li>
+                <li><strong class="text-white">Shoot:</strong> Click or tap, then drag back to aim the cue stick. Release to strike.</li>
                 <li><strong class="text-white">Rules:</strong> First ball potted determines your suit (Solids or Stripes).</li>
                 <li><strong class="text-white">Winning:</strong> Clear your suit, then pot the 8-Ball (Black).</li>
                 <li><strong class="text-white">Foul:</strong> Potting the cue ball gives the opponent "Ball in Hand" (drag to place).</li>
@@ -120,7 +141,7 @@
         const BALL_RESTITUTION = 0.9;
         const FRICTION_AIR = 0.008; // Rolling friction
         const MAX_PULL = 200;
-        let FORCE_MULTI = 0.00015;
+        let FORCE_MULTI = 0.0017; // 170 * 0.00001 (default strength 170)
 
         // UI Elements
         const p1SuitEl = document.getElementById('p1-suit');
@@ -133,6 +154,7 @@
         const resetBtn = document.getElementById('reset-btn');
         const p2NameEl = document.getElementById('p2-name');
         const powerInput = document.getElementById('power-input');
+        const statusMessageEl = document.getElementById('status-message');
 
         // Ball Colors
         const ballColors = {
@@ -163,6 +185,7 @@
         let dragStart = null;
         let dragCurrent = null;
         let botTimeout = null;
+        let evaluatingTurn = false;
 
         // --- Init Physics Engine ---
         function initEngine() {
@@ -300,6 +323,33 @@
             updateUI();
         }
 
+        function cueBallOverlapsOtherBall(x, y) {
+            const minDist = BALL_RADIUS * 2 + 1; // need gap to avoid Matter overlap
+            const bodies = Composite.allBodies(engine.world);
+            for (const b of bodies) {
+                if (b !== cueBall && b.renderType && b.renderType.includes('Ball')) {
+                    const d = Math.hypot(b.position.x - x, b.position.y - y);
+                    if (d < minDist) return true;
+                }
+            }
+            return false;
+        }
+
+        function findValidCuePlacement(nearX, nearY) {
+            const tries = [
+                [0, 0], [45, 0], [-45, 0], [0, 45], [0, -45],
+                [65, 65], [-65, -65], [65, -65], [-65, 65],
+                [90, 0], [-90, 0], [0, 90], [0, -90]
+            ];
+            const margin = 50;
+            for (const [dx, dy] of tries) {
+                const x = Math.max(margin, Math.min(WIDTH - margin, nearX + dx));
+                const y = Math.max(margin, Math.min(HEIGHT - margin, nearY + dy));
+                if (!cueBallOverlapsOtherBall(x, y)) return { x, y };
+            }
+            return { x: nearX, y: nearY }; // fallback
+        }
+
         function placeCueBall(x, y) {
             if (cueBall) {
                 Composite.remove(engine.world, cueBall);
@@ -361,11 +411,13 @@
         }
 
         function evaluateTurn() {
+            if (evaluatingTurn) return;
+            evaluatingTurn = true;
+            try {
             let keepTurn = false;
             let gameOver = false;
             let mySuit = playerSuits[turn];
-            let p2Key = gameMode === 'PvB' ? 'Player 2' : 'Player 2';
-            let oppTurn = turn === 'Player 1' ? p2Key : 'Player 1';
+            let oppTurn = turn === 'Player 1' ? 'Player 2' : 'Player 1';
 
             // Check First Hit Foul
             if (!firstHitBall) {
@@ -388,24 +440,35 @@
                 gameOver = true;
                 let remaining = getRemainingBalls(mySuit);
                 if (remaining === 0 && !isFoul) {
-                    showMessage(turn + " Wins!", "Sunk the 8-Ball.");
+                    showMessage(turn + " Wins!", "Sunk the 8-Ball.", 3500);
                 } else {
-                    showMessage(oppTurn + " Wins!", turn + " fouled on the 8-Ball.");
+                    showMessage(oppTurn + " Wins!", turn + " fouled on the 8-Ball.", 3500);
                 }
             } else if (isFoul) {
                 keepTurn = false;
-                showMessage("Foul!", oppTurn + " gets Ball in Hand.");
+                showMessage("Foul!", oppTurn + " gets Ball in Hand.", 3500);
                 state = 'PLACING';
             } else if (ballsPottedThisTurn.length > 0) {
-                // Assign suits if not set
+                // Assign suits if not set (use first ball contacted, then first potted)
                 if (!mySuit) {
-                    let pottedTypes = ballsPottedThisTurn.filter(t => t === 'Solid' || t === 'Stripe');
-                    if (pottedTypes.length > 0) {
-                        mySuit = pottedTypes[0];
+                    let assigned = false;
+                    if (firstHitBall && (firstHitBall.renderType === 'SolidBall' || firstHitBall.renderType === 'StripeBall')) {
+                        mySuit = firstHitBall.renderType === 'SolidBall' ? 'Solid' : 'Stripe';
                         playerSuits[turn] = mySuit;
                         playerSuits[oppTurn] = mySuit === 'Solid' ? 'Stripe' : 'Solid';
                         showMessage("Suits Assigned", turn + " is " + mySuit + "s");
                         keepTurn = true;
+                        assigned = true;
+                    }
+                    if (!assigned) {
+                        let pottedTypes = ballsPottedThisTurn.filter(t => t === 'Solid' || t === 'Stripe');
+                        if (pottedTypes.length > 0) {
+                            mySuit = pottedTypes[0];
+                            playerSuits[turn] = mySuit;
+                            playerSuits[oppTurn] = mySuit === 'Solid' ? 'Stripe' : 'Solid';
+                            showMessage("Suits Assigned", turn + " is " + mySuit + "s");
+                            keepTurn = true;
+                        }
                     }
                 } else {
                     // Did they pot their own?
@@ -421,8 +484,9 @@
                     turn = oppTurn;
                 } else if (isFoul) {
                     turn = oppTurn;
-                    // Prepare ball in hand
-                    placeCueBall(WIDTH/2, HEIGHT/2); 
+                    // Prepare ball in hand at a valid spot (no overlap)
+                    const pos = findValidCuePlacement(WIDTH/2, HEIGHT/2);
+                    placeCueBall(pos.x, pos.y);
                     Matter.Body.setVelocity(cueBall, {x:0, y:0});
                 }
                 
@@ -444,6 +508,9 @@
             ballsPottedThisTurn = [];
             firstHitBall = null;
             isFoul = false;
+            } finally {
+                evaluatingTurn = false;
+            }
         }
 
         function getRemainingBalls(suit) {
@@ -457,10 +524,21 @@
             if (state === 'GAMEOVER') return;
 
             if (state === 'PLACING') {
-                // Bot ball in hand: just place it randomly behind headstring
-                let rx = 100 + Math.random() * 100;
-                let ry = 100 + Math.random() * (HEIGHT - 200);
-                Body.setPosition(cueBall, {x: rx, y: ry});
+                // Bot ball in hand: place at a valid spot (no overlap)
+                let placed = false;
+                for (let attempt = 0; attempt < 25; attempt++) {
+                    let rx = 80 + Math.random() * (WIDTH * 0.2 - 60);
+                    let ry = 80 + Math.random() * (HEIGHT - 160);
+                    if (!cueBallOverlapsOtherBall(rx, ry)) {
+                        Body.setPosition(cueBall, { x: rx, y: ry });
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) {
+                    const pos = findValidCuePlacement(WIDTH * 0.2, HEIGHT / 2);
+                    Body.setPosition(cueBall, pos);
+                }
                 state = 'IDLE';
                 setTimeout(playBotTurn, 500);
                 return;
@@ -520,6 +598,15 @@
                 let dx = cueBall.position.x - dragCurrent.x;
                 let dy = cueBall.position.y - dragCurrent.y;
                 let finalDist = Math.hypot(dx, dy);
+                if (finalDist < 5) {
+                    state = 'IDLE';
+                    dragStart = null;
+                    dragCurrent = null;
+                    if (gameMode === 'PvB' && turn === 'Player 2' && state !== 'GAMEOVER') {
+                        botTimeout = setTimeout(playBotTurn, 800);
+                    }
+                    return;
+                }
                 let dirX = dx / finalDist;
                 let dirY = dy / finalDist;
                 let force = finalDist * FORCE_MULTI;
@@ -554,6 +641,18 @@
             } else {
                 turnIndicatorEl.className = "text-sm font-bold text-white bg-red-600 px-4 py-1 rounded-full shadow-md";
             }
+
+            // Status message: ball in hand or bot thinking
+            if (state === 'PLACING') {
+                statusMessageEl.textContent = 'Place the cue ball';
+                statusMessageEl.className = 'text-xs text-yellow-400 mt-1 min-h-[1em]';
+            } else if (gameMode === 'PvB' && turn === 'Player 2' && state !== 'GAMEOVER') {
+                statusMessageEl.textContent = 'Bot is thinking…';
+                statusMessageEl.className = 'text-xs text-gray-400 mt-1 min-h-[1em]';
+            } else {
+                statusMessageEl.textContent = '';
+                statusMessageEl.className = 'text-xs text-gray-400 mt-1 min-h-[1em]';
+            }
         }
 
         function getSuitColor(suit) {
@@ -562,13 +661,13 @@
             return 'bg-gray-700';
         }
 
-        function showMessage(msg, subMsg = "") {
+        function showMessage(msg, subMsg = "", durationMs = 2500) {
             messageText.innerText = msg;
             subMessageText.innerText = subMsg;
             messageOverlay.classList.remove('opacity-0');
             setTimeout(() => {
                 messageOverlay.classList.add('opacity-0');
-            }, 2500);
+            }, durationMs);
         }
 
         // --- Custom Rendering ---
@@ -636,8 +735,9 @@
             ctx.arc(0, 0, r, 0, Math.PI * 2);
             ctx.clip(); // Clip everything to the circle
 
-            // Base Color
-            let baseColor = ballColors[ballNumber] || '#fff';
+            // Base Color (stripes 9-15 use same colors as solids 1-7)
+            let colorKey = ballNumber <= 8 ? ballNumber : ballNumber - 8;
+            let baseColor = ballColors[colorKey] || '#fff';
             
             if (renderType === 'SolidBall' || renderType === 'BlackBall') {
                 ctx.fillStyle = baseColor;
@@ -788,7 +888,6 @@
                             isMoving = true;
                             // Add extra damping to help stop cleanly
                             Body.setVelocity(b, {x: b.velocity.x * 0.99, y: b.velocity.y * 0.99});
-                            break;
                         } else if (b.speed > 0) {
                              // Force sleep if very slow to prevent infinite micro-sliding
                              Body.setVelocity(b, {x: 0, y: 0});
@@ -834,11 +933,12 @@
                 state = 'AIMING';
                 dragStart = pos;
                 dragCurrent = pos;
-            } else if (state === 'PLACING' && cueBall) {
-                // Check if clicking near cue ball to move it
+            } else             if (state === 'PLACING' && cueBall) {
                 let dist = Math.hypot(pos.x - cueBall.position.x, pos.y - cueBall.position.y);
-                if (dist < BALL_RADIUS * 3) {
-                    Body.setPosition(cueBall, pos);
+                if (dist < BALL_RADIUS * 3 && !cueBallOverlapsOtherBall(pos.x, pos.y)) {
+                    let px = Math.max(50, Math.min(WIDTH - 50, pos.x));
+                    let py = Math.max(50, Math.min(HEIGHT - 50, pos.y));
+                    Body.setPosition(cueBall, { x: px, y: py });
                 }
             }
         }
@@ -852,11 +952,12 @@
 
             if (state === 'AIMING') {
                 dragCurrent = pos;
-            } else if (state === 'PLACING' && cueBall && e.buttons === 1 || (e.touches && e.touches.length > 0)) {
-                // Keep inside bounds (roughly)
-                let px = Math.max(50, Math.min(WIDTH-50, pos.x));
-                let py = Math.max(50, Math.min(HEIGHT-50, pos.y));
-                Body.setPosition(cueBall, {x: px, y: py});
+            } else if (state === 'PLACING' && cueBall && (e.buttons === 1 || (e.touches && e.touches.length > 0))) {
+                let px = Math.max(50, Math.min(WIDTH - 50, pos.x));
+                let py = Math.max(50, Math.min(HEIGHT - 50, pos.y));
+                if (!cueBallOverlapsOtherBall(px, py)) {
+                    Body.setPosition(cueBall, { x: px, y: py });
+                }
             }
         }
 
@@ -912,7 +1013,9 @@
         // Listen for power multiplier changes
         powerInput.addEventListener('input', (e) => {
             let val = parseFloat(e.target.value);
-            if (isNaN(val) || val <= 0) val = 1; // Minimum safeguard
+            if (isNaN(val) || val <= 0) val = 1;
+            val = Math.max(1, Math.min(1000, val)); // Clamp to 1-1000
+            powerInput.value = val; // Keep input in sync with clamped value
             FORCE_MULTI = val * 0.00001; // Maps 15 to original 0.00015
         });
 
